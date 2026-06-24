@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import WorkshopCard from "@/components/shared/WorkshopCard";
-import { workshops } from "@/data/workshops";
 
-export default function UpcomingWorkshops() {
+import WorkshopCard, {
+  type WorkshopCardData,
+} from "@/components/shared/WorkshopCard";
+import { client } from "@/sanity/lib/client";
+import { featuredWorkshopsQuery } from "@/sanity/lib/queries";
+
+export default async function UpcomingWorkshops() {
+  const workshops = await client.fetch<WorkshopCardData[]>(
+    featuredWorkshopsQuery
+  );
+
   return (
     <section className="mx-auto max-w-6xl px-6 py-24">
       <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -31,14 +39,19 @@ export default function UpcomingWorkshops() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {workshops.slice(0, 3).map((workshop) => (
-          <WorkshopCard
-            key={workshop.id}
-            workshop={workshop}
-          />
-        ))}
-      </div>
+      {workshops.length > 0 ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {workshops.slice(0, 3).map((workshop) => (
+            <WorkshopCard key={workshop._id} workshop={workshop} />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-3xl border border-[#B4A88C]/25 bg-[#FAF8F1] p-8">
+          <p className="text-[#7A7268]">
+            Henüz öne çıkarılmış bir atölye bulunmuyor.
+          </p>
+        </div>
+      )}
     </section>
   );
 }

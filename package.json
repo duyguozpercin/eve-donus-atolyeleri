@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "NODE_EXTRA_CA_CERTS=$(npm config get cafile) next dev",
+    "build": "NODE_EXTRA_CA_CERTS=$(npm config get cafile) next build",
+    "start": "NODE_EXTRA_CA_CERTS=$(npm config get cafile) next start",
     "lint": "eslint"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@portabletext/react": "^6.2.0",
     "@sanity/icons": "^3.7.4",
     "@sanity/image-url": "^2.1.1",
     "@sanity/vision": "^5.31.1",
