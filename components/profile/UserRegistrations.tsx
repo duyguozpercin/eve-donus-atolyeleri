@@ -171,7 +171,7 @@ export function UserRegistrations() {
                   )}
 
                   <span className="rounded-full bg-[#FAF8F1] px-3 py-1">
-                    ✓ Kayıtlı
+                    ✓ Kaydınız alındı
                   </span>
                 </div>
               </div>
