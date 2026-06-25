@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@/components/providers/AuthProvider";
-
 import { useEffect, useState } from "react";
+
+import { useAuth } from "@/components/providers/AuthProvider";
 import {
   checkWorkshopRegistration,
+  getWorkshopStats,
   registerWorkshop,
 } from "@/lib/services/registrationService";
 
@@ -13,18 +14,26 @@ type RegisterWorkshopBoxProps = {
   workshopId: string;
   workshopSlug: string;
   workshopTitle: string;
+  capacity: number;
+  remainingSeats: number;
 };
 
 export function RegisterWorkshopBox({
   workshopId,
   workshopSlug,
   workshopTitle,
+  capacity,
+  remainingSeats,
 }: RegisterWorkshopBoxProps) {
   const { user, loading } = useAuth();
 
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const [currentRemainingSeats, setCurrentRemainingSeats] =
+    useState(remainingSeats);
+
+  const isFull = currentRemainingSeats <= 0;
 
   useEffect(() => {
     async function checkRegistration() {
@@ -36,10 +45,18 @@ export function RegisterWorkshopBox({
       );
 
       setAlreadyRegistered(result);
+
+      const stats = await getWorkshopStats(workshopSlug);
+
+      if (stats && capacity > 0) {
+        setCurrentRemainingSeats(
+          Math.max(0, capacity - stats.registeredCount)
+        );
+      }
     }
 
     checkRegistration();
-  }, [user, workshopSlug]);
+  }, [user, workshopSlug, capacity]);
 
   if (loading) {
     return (
@@ -80,13 +97,26 @@ export function RegisterWorkshopBox({
         {workshopTitle} atölyesine bu hesapla kayıt olacaksınız:
       </p>
 
-      <p className="mb-6 text-sm text-[#7A7268]">
-        {user.email}
-      </p>
+      <div className="mb-6 space-y-2 text-sm text-[#7A7268]">
+        <p>{user.email}</p>
+
+        {capacity > 0 && (
+          <p>
+            Kontenjan: {capacity} kişi / Kalan yer:{" "}
+            {currentRemainingSeats}
+          </p>
+        )}
+      </div>
+
+      {isFull && !alreadyRegistered && (
+        <p className="mb-4 text-sm text-[#7A7268]">
+          Bu atölyenin kontenjanı dolmuştur.
+        </p>
+      )}
 
       <button
         type="button"
-        disabled={alreadyRegistered || isSubmitting}
+        disabled={alreadyRegistered || isSubmitting || isFull}
         onClick={async () => {
           if (!user || !user.email) return;
 
@@ -98,11 +128,15 @@ export function RegisterWorkshopBox({
               workshopId,
               workshopSlug,
               workshopTitle,
+              capacity: capacity ?? 0,
               userId: user.uid,
               userEmail: user.email,
             });
 
             setAlreadyRegistered(true);
+            setCurrentRemainingSeats((prev) =>
+              Math.max(0, prev - 1)
+            );
             setMessage("Kaydınız alındı.");
           } catch (error) {
             setMessage(
@@ -120,8 +154,11 @@ export function RegisterWorkshopBox({
           ? "Kaydediliyor..."
           : alreadyRegistered
             ? "Kaydınız Alındı"
-            : "Kaydol"}
+            : isFull
+              ? "Kontenjan Doldu"
+              : "Kaydol"}
       </button>
+
       {message && (
         <p className="mt-4 text-sm text-[#7A7268]">
           {message}

@@ -10,6 +10,8 @@ type Workshop = {
   _id: string;
   title: string;
   slug: string;
+  capacity?: number;
+  remainingSeats?: number;
 };
 
 type PageProps = {
@@ -47,6 +49,8 @@ export default async function RegisterPage({ params }: PageProps) {
         workshopId={workshop._id}
         workshopSlug={workshop.slug}
         workshopTitle={workshop.title}
+        capacity={workshop.capacity ?? 0}
+        remainingSeats={workshop.remainingSeats ?? 0}
       />
     </main>
   );

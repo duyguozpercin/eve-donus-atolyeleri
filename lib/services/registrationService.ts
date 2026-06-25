@@ -4,8 +4,8 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
   where,
 } from "firebase/firestore";
 
@@ -15,6 +15,7 @@ type RegisterWorkshopParams = {
   workshopId: string;
   workshopSlug: string;
   workshopTitle: string;
+  capacity: number;
   userId: string;
   userEmail: string;
 };
@@ -24,9 +25,18 @@ export type WorkshopRegistration = {
   workshopId: string;
   workshopSlug: string;
   workshopTitle: string;
+  capacity?: number;
   userId: string;
   userEmail: string;
   status: "registered";
+};
+
+export type WorkshopStats = {
+  workshopId: string;
+  workshopSlug: string;
+  workshopTitle: string;
+  capacity: number;
+  registeredCount: number;
 };
 
 function getRegistrationId(userId: string, workshopSlug: string) {
@@ -50,10 +60,22 @@ export async function checkWorkshopRegistration(
   return snapshot.exists();
 }
 
+export async function getWorkshopStats(workshopSlug: string) {
+  const statsRef = doc(db, "workshopStats", workshopSlug);
+  const snapshot = await getDoc(statsRef);
+
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  return snapshot.data() as WorkshopStats;
+}
+
 export async function registerWorkshop({
   workshopId,
   workshopSlug,
   workshopTitle,
+  capacity,
   userId,
   userEmail,
 }: RegisterWorkshopParams) {
@@ -65,20 +87,50 @@ export async function registerWorkshop({
     registrationId
   );
 
-  const snapshot = await getDoc(registrationRef);
+  const statsRef = doc(db, "workshopStats", workshopSlug);
 
-  if (snapshot.exists()) {
-    throw new Error("Bu atölyeye zaten kayıtlısınız.");
-  }
+  await runTransaction(db, async (transaction) => {
+    const registrationSnapshot = await transaction.get(
+      registrationRef
+    );
 
-  await setDoc(registrationRef, {
-    workshopId,
-    workshopSlug,
-    workshopTitle,
-    userId,
-    userEmail,
-    status: "registered",
-    createdAt: serverTimestamp(),
+    if (registrationSnapshot.exists()) {
+      throw new Error("Bu atölyeye zaten kayıtlısınız.");
+    }
+
+    const statsSnapshot = await transaction.get(statsRef);
+
+    const currentRegisteredCount = statsSnapshot.exists()
+      ? statsSnapshot.data().registeredCount ?? 0
+      : 0;
+
+    if (capacity > 0 && currentRegisteredCount >= capacity) {
+      throw new Error("Bu atölyenin kontenjanı dolmuştur.");
+    }
+
+    transaction.set(registrationRef, {
+      workshopId,
+      workshopSlug,
+      workshopTitle,
+      capacity: capacity ?? 0,
+      userId,
+      userEmail,
+      status: "registered",
+      createdAt: serverTimestamp(),
+    });
+
+    transaction.set(
+      statsRef,
+      {
+        workshopId,
+        workshopSlug,
+        workshopTitle,
+        capacity: capacity ?? 0,
+        registeredCount: currentRegisteredCount + 1,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
   });
 }
 
